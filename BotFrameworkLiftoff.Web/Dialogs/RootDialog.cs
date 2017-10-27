@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
+using System.Collections.Generic;
 
 namespace BotFrameworkLiftoff.Web.Dialogs
 {
@@ -13,6 +14,7 @@ namespace BotFrameworkLiftoff.Web.Dialogs
         public Task StartAsync(IDialogContext context)
         {
             this.count = 0;
+            context.SayAsync("Why hello there!");
             context.Wait(MessageReceivedAsync);
             return Task.CompletedTask;
         }
@@ -22,18 +24,26 @@ namespace BotFrameworkLiftoff.Web.Dialogs
             var activity = await result as Activity;
             activity.Text = activity.Text ?? string.Empty;
 
+            var command = activity.Text.ToLowerInvariant();
+
             // check if the user said reset
-            if (activity.Text.ToLowerInvariant().StartsWith("reset"))
+            if (command.StartsWith("/"))
             {
-                // ask the user to confirm if they want to reset the counter
-                var options = new PromptOptions<string>(prompt: "Are you sure you want to reset the count?",
-                    retry: "Didn't get that!", speak: "Do you want me to reset the counter?",
-                    retrySpeak: "You can say yes or no!",
-                    options: PromptDialog.PromptConfirm.Options,
-                    promptStyler: new PromptStyler());
-
-                PromptDialog.Confirm(context, AfterResetAsync, options);
-
+                switch (command)
+                {
+                    case "/start":
+                        await ReplyWithStartMessageAsync(context);
+                        break;
+                    case "/cards":
+                        await ReplyWithCardsAsync(context);
+                        break;
+                    case "/gif":
+                        await ReplyWithGifAsync(context);
+                        break;
+                    default:
+                        await context.SayAsync("Sorry, I didn't catched this. Check out the commands for available methods.");
+                        break;
+                }
             }
             else
             {
@@ -48,6 +58,45 @@ namespace BotFrameworkLiftoff.Web.Dialogs
                 context.Wait(MessageReceivedAsync);
             }
 
+        }
+
+        private async Task ReplyWithGifAsync(IDialogContext context)
+        {
+            var gifCard = new AnimationCard("We all do love cats", "Subtitle about cats belongs here", "Write something about cats",
+                new ThumbnailUrl("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZqgfFQmgPpaogLWfDzWIgiVLAHPvGFi2VMrBhnrnWhtd4JCYAfg"), new List<MediaUrl>() { new MediaUrl("https://media.giphy.com/media/ziYUNUTpi4SiI/giphy.gif") });
+
+            var message = context.MakeMessage();
+            message.Attachments.Add(gifCard.ToAttachment());
+            await context.PostAsync(message);
+
+            context.Wait(MessageReceivedAsync);
+        }
+
+        private async Task ReplyWithStartMessageAsync(IDialogContext context)
+        {
+            await context.SayAsync("Why hello there!");
+            context.Wait(MessageReceivedAsync);
+        }
+
+        private async Task ReplyWithCardsAsync(IDialogContext context)
+        {
+            var card = new HeroCard("Hero Card", "I'm a fancy hero card", "Insert some text here to represent the card", 
+                new List<CardImage>()
+                {
+                    new CardImage("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZqgfFQmgPpaogLWfDzWIgiVLAHPvGFi2VMrBhnrnWhtd4JCYAfg")
+                }// , 
+                //new List<CardAction>()
+                //{
+                //    new CardAction("button", "Action 1"),
+                //    new CardAction("button", "Action 2")
+                //}
+            );
+
+            var message = context.MakeMessage();
+            message.Attachments.Add(card.ToAttachment());
+            await context.PostAsync(message);
+
+            context.Wait(MessageReceivedAsync);
         }
 
         public async Task AfterResetAsync(IDialogContext context, IAwaitable<bool> argument)
